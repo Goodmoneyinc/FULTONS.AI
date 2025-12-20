@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FileText, Clock, CheckCircle, XCircle, Loader2, Eye } from 'lucide-react';
+import { FileText, Clock, CheckCircle, XCircle, Loader2, Eye, FileSearch } from 'lucide-react';
 import { supabase, type Document } from '../lib/supabase';
+import { ContractReview } from './ContractReview';
 
 interface DocumentListProps {
   refreshTrigger: number;
@@ -12,6 +13,7 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
+  const [reviewDoc, setReviewDoc] = useState<{ name: string; content: string } | null>(null);
 
   useEffect(() => {
     loadDocuments();
@@ -78,6 +80,24 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
       setContent('Failed to load content');
     } finally {
       setLoadingContent(false);
+    }
+  };
+
+  const reviewContract = async (documentId: string, documentName: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('document_contents')
+        .select('content_text')
+        .eq('document_id', documentId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data?.content_text) {
+        setReviewDoc({ name: documentName, content: data.content_text });
+      }
+    } catch (error) {
+      console.error('Error loading content for review:', error);
     }
   };
 
@@ -177,13 +197,22 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
               </div>
 
               {doc.status === 'completed' && (
-                <button
-                  onClick={() => viewContent(doc.id)}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded transition"
-                  title="View extracted content"
-                >
-                  <Eye className="w-5 h-5 text-white" />
-                </button>
+                <>
+                  <button
+                    onClick={() => reviewContract(doc.id, doc.filename)}
+                    className="p-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded transition"
+                    title="Review contract with AI"
+                  >
+                    <FileSearch className="w-5 h-5 text-blue-400" />
+                  </button>
+                  <button
+                    onClick={() => viewContent(doc.id)}
+                    className="p-2 bg-white/10 hover:bg-white/20 rounded transition"
+                    title="View extracted content"
+                  >
+                    <Eye className="w-5 h-5 text-white" />
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -224,6 +253,14 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {reviewDoc && (
+        <ContractReview
+          documentName={reviewDoc.name}
+          content={reviewDoc.content}
+          onClose={() => setReviewDoc(null)}
+        />
       )}
     </div>
   );

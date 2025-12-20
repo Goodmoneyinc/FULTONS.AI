@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Shield, LogOut, Upload as UploadIcon, FileText } from 'lucide-react';
+import { Shield, LogOut, Upload as UploadIcon, FileText, PenTool } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { DocumentUpload } from './DocumentUpload';
 import { DocumentList } from './DocumentList';
+import { ContractDrafting } from './ContractDrafting';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -58,7 +59,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
               Legal Document Pipeline
             </h1>
             <p className="text-white/60 text-lg font-light">
-              Upload PDF documents for AI-powered text extraction and analysis
+              AI-powered contract review, drafting, and document analysis with DeepSeek R1
             </p>
           </div>
 
@@ -66,14 +67,14 @@ export function Dashboard({ onLogout }: DashboardProps) {
             <div className="bg-white/5 border border-white/10 rounded-lg p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-blue-500/10 rounded">
-                  <UploadIcon className="w-6 h-6 text-blue-400" />
+                  <PenTool className="w-6 h-6 text-blue-400" />
                 </div>
                 <h3 className="text-white font-bold uppercase tracking-wide text-sm">
-                  Upload PDFs
+                  AI Contract Drafting
                 </h3>
               </div>
               <p className="text-white/50 text-sm font-light leading-relaxed">
-                Securely upload legal documents up to 50MB. Files are stored with bank-level encryption.
+                Generate professional contracts with DeepSeek R1. Specify terms and get ready-to-use drafts.
               </p>
             </div>
 
@@ -83,11 +84,11 @@ export function Dashboard({ onLogout }: DashboardProps) {
                   <FileText className="w-6 h-6 text-amber-400" />
                 </div>
                 <h3 className="text-white font-bold uppercase tracking-wide text-sm">
-                  AI Processing
+                  Contract Review
                 </h3>
               </div>
               <p className="text-white/50 text-sm font-light leading-relaxed">
-                Our AI extracts and cleans text from your PDFs automatically in seconds.
+                Upload contracts for comprehensive AI analysis. Identify risks, obligations, and key terms.
               </p>
             </div>
 
@@ -112,6 +113,10 @@ export function Dashboard({ onLogout }: DashboardProps) {
               Upload New Document
             </h2>
             <DocumentUpload onUploadComplete={handleUploadComplete} />
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-lg p-8 mb-8">
+            <ContractDrafting />
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-lg p-8">
