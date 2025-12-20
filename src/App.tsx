@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { LandingPage } from './components/LandingPage';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 
 function App() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,6 +33,7 @@ function App() {
 
   const handleLogout = () => {
     setSession(null);
+    setShowAuth(false);
   };
 
   if (loading) {
@@ -41,11 +44,15 @@ function App() {
     );
   }
 
-  if (!session) {
+  if (session) {
+    return <Dashboard onLogout={handleLogout} />;
+  }
+
+  if (showAuth) {
     return <Auth onAuthSuccess={handleAuthSuccess} />;
   }
 
-  return <Dashboard onLogout={handleLogout} />;
+  return <LandingPage onGetStarted={() => setShowAuth(true)} />;
 }
 
 export default App;
