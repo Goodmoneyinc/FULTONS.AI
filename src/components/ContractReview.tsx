@@ -27,6 +27,7 @@ interface ContractReviewProps {
 export function ContractReview({ documentName, content, onClose }: ContractReviewProps) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [reasoning, setReasoning] = useState<string | null>(null);
+  const [showReasoning, setShowReasoning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisType, setAnalysisType] = useState<AnalysisType>('mna');
@@ -265,13 +266,26 @@ Return the results as a JSON object:
               </div>
 
               {reasoning && (
-                <div className="bg-amber-50/5 border-2 border-amber-900/30 rounded-lg p-6">
-                  <h3 className="text-amber-200 font-bold text-lg mb-4 font-serif">
-                    AI Step-by-Step Reasoning:
-                  </h3>
-                  <p className="text-white/70 whitespace-pre-wrap leading-relaxed text-sm font-light">
-                    {reasoning}
-                  </p>
+                <div className="bg-amber-50/5 border-2 border-amber-900/30 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setShowReasoning(!showReasoning)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition"
+                  >
+                    <h3 className="text-amber-200 font-bold text-sm font-serif uppercase tracking-wide flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      DeepSeek R1 Step-by-Step Reasoning
+                    </h3>
+                    <span className="text-amber-200 text-xs font-semibold">
+                      {showReasoning ? 'Hide' : 'Show'} Logic
+                    </span>
+                  </button>
+                  {showReasoning && (
+                    <div className="p-6 pt-0 border-t border-amber-900/20">
+                      <p className="text-white/70 whitespace-pre-wrap leading-relaxed text-sm font-light">
+                        {reasoning}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

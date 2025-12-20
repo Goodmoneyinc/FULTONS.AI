@@ -7,6 +7,7 @@ import { ContractDrafting } from './ContractDrafting';
 import { LegalAssistant } from './LegalAssistant';
 import { WorkflowAutomation } from './WorkflowAutomation';
 import { LegalResearch } from './LegalResearch';
+import { DocumentVault } from './DocumentVault';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -177,6 +178,10 @@ export function Dashboard({ onLogout }: DashboardProps) {
                     Your Documents
                   </h2>
                   <DocumentList refreshTrigger={refreshTrigger} onDocumentsChange={handleDocumentsChange} />
+                </div>
+
+                <div className="border-t border-white/10 pt-8">
+                  <DocumentVault />
                 </div>
               </div>
             )}

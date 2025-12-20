@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, Loader2, X, BookOpen, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { callLegalAssistant } from '../lib/api';
+import { callLegalAssistant, analyzeDocument } from '../lib/api';
 
 interface Message {
   id: string;
@@ -107,27 +107,24 @@ export function LegalAssistant({ documentId, documentName, onClose }: LegalAssis
           content: userMessage.content
         });
 
-      let prompt = '';
-      if (documentContent) {
-        prompt = `You are a senior legal AI assistant at a top law firm. A user has uploaded a document and is asking questions about it.
+      let response: string;
+      const citations: Citation[] = [];
 
-Document: "${documentName}"
-Document Content (excerpt):
-${documentContent.substring(0, 3000)}
+      if (documentId && documentContent) {
+        const result = await analyzeDocument(documentId, 'question', userMessage.content);
+        response = result.content;
 
-User Question: ${userMessage.content}
-
-Provide a clear, authoritative answer. If you reference specific clauses or sections, quote them directly. If you cite legal principles, provide the source (case law, statute, etc.).
-
-Format your response with:
-1. Direct answer to the question
-2. Relevant quotes from the document (if applicable)
-3. Legal reasoning or implications
-4. Any recommendations or next steps
-
-If you cite external legal sources, format them as: [SOURCE: citation text | type: case_law/statute/regulation]`;
+        const pageRegex = /\[Page (\d+)\]/g;
+        let match;
+        while ((match = pageRegex.exec(response)) !== null) {
+          citations.push({
+            text: `Page ${match[1]}`,
+            type: 'document_reference',
+            url: undefined
+          });
+        }
       } else {
-        prompt = `You are a senior legal AI assistant at a top law firm.
+        const prompt = `You are a senior legal AI assistant at a top law firm.
 
 User Question: ${userMessage.content}
 
@@ -137,23 +134,27 @@ Provide clear, authoritative legal guidance. When citing legal principles:
 - Format citations as: [SOURCE: citation text | type: case_law/statute/regulation | jurisdiction: US/EU/etc.]
 
 Be precise, professional, and cite your sources.`;
+
+        response = await callLegalAssistant(prompt, 'anthropic/claude-3.5-sonnet');
+
+        const citationRegex = /\[SOURCE: ([^\|]+) \| type: ([^\|]+)(?:\| jurisdiction: ([^\]]+))?\]/g;
+        let match;
+
+        while ((match = citationRegex.exec(response || '')) !== null) {
+          citations.push({
+            text: match[1].trim(),
+            type: match[2].trim(),
+            url: undefined
+          });
+        }
       }
 
-      const response = await callLegalAssistant(prompt, 'anthropic/claude-3.5-sonnet');
-
-      const citations: Citation[] = [];
       const citationRegex = /\[SOURCE: ([^\|]+) \| type: ([^\|]+)(?:\| jurisdiction: ([^\]]+))?\]/g;
-      let match;
-
-      while ((match = citationRegex.exec(response || '')) !== null) {
-        citations.push({
-          text: match[1].trim(),
-          type: match[2].trim(),
-          url: undefined
-        });
-      }
-
-      const cleanResponse = response?.replace(citationRegex, '') || 'I apologize, but I was unable to generate a response.';
+      const pageRegex = /\[Page (\d+)\]/g;
+      const cleanResponse = response
+        ?.replace(citationRegex, '')
+        ?.replace(pageRegex, '')
+        ?.trim() || 'I apologize, but I was unable to generate a response.';
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,

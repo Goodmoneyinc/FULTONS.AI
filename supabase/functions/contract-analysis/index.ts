@@ -47,8 +47,9 @@ Deno.serve(async (req: Request) => {
         "X-Title": "Fultons Legal AI",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1-0528:free",
+        model: "deepseek/deepseek-r1",
         messages: [{ role: "user", content: prompt }],
+        include_reasoning: true,
       }),
     });
 
@@ -66,7 +67,9 @@ Deno.serve(async (req: Request) => {
 
     const data = await response.json();
     const content = data.choices[0].message.content;
-    const reasoning = data.choices[0].message.model_extra?.reasoning || null;
+    const reasoning = data.choices[0].message.reasoning_content || 
+                     data.choices[0].message.model_extra?.reasoning || 
+                     null;
 
     return new Response(
       JSON.stringify({ content, reasoning }),

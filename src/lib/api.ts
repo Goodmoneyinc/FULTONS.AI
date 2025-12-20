@@ -86,3 +86,29 @@ export async function executeWorkflow(prompt: string) {
   const data = await response.json();
   return data.content;
 }
+
+export async function analyzeDocument(
+  documentId: string,
+  taskType: 'summarize' | 'extract' | 'question' | 'draft',
+  query?: string
+) {
+  const headers = await getAuthHeaders();
+  const url = `${getSupabaseUrl()}/functions/v1/document-analysis`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ documentId, taskType, query }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to analyze document');
+  }
+
+  const data = await response.json();
+  return {
+    content: data.content,
+    model: data.model,
+    documentStats: data.documentStats,
+  };
+}
