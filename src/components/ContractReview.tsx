@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Loader2, FileSearch, AlertCircle, CheckCircle, AlertTriangle, Shield } from 'lucide-react';
+import { X, Loader2, FileSearch, AlertCircle, CheckCircle, AlertTriangle, Shield, ChevronDown, ChevronUp, Brain } from 'lucide-react';
 import { getDeepSeekResponse } from '../lib/openai';
 
 interface Finding {
@@ -26,6 +26,8 @@ interface ContractReviewProps {
 
 export function ContractReview({ documentName, content, onClose }: ContractReviewProps) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [reasoning, setReasoning] = useState<string | null>(null);
+  const [showReasoning, setShowReasoning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisType, setAnalysisType] = useState<AnalysisType>('mna');
@@ -93,7 +95,9 @@ Return the results as a JSON object:
 
       const result = await getDeepSeekResponse(prompt);
 
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      setReasoning(result.reasoning);
+
+      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         setAnalysis(parsed);
@@ -101,7 +105,7 @@ Return the results as a JSON object:
         setAnalysis({ findings: [{
           category: "General Analysis",
           clause: "Full analysis provided",
-          implication: result,
+          implication: result.content,
           risk_level: "Medium"
         }]});
       }
@@ -261,6 +265,36 @@ Return the results as a JSON object:
                 </span>
               </div>
 
+              {reasoning && (
+                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setShowReasoning(!showReasoning)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-purple-500/5 transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Brain className="w-5 h-5 text-purple-400" />
+                      <span className="text-purple-400 font-semibold text-sm uppercase tracking-wide">
+                        Step-by-Step Reasoning Process
+                      </span>
+                    </div>
+                    {showReasoning ? (
+                      <ChevronUp className="w-5 h-5 text-purple-400" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-purple-400" />
+                    )}
+                  </button>
+                  {showReasoning && (
+                    <div className="p-4 bg-black/30 border-t border-purple-500/30">
+                      <div className="prose prose-sm prose-invert max-w-none">
+                        <pre className="text-purple-200/80 whitespace-pre-wrap font-light leading-relaxed text-sm bg-transparent p-0 m-0">
+                          {reasoning}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {analysisType === 'gdpr' && analysis.is_dpa !== undefined && (
                 <div className={`border rounded-lg p-4 ${
                   analysis.is_dpa
@@ -359,6 +393,8 @@ Return the results as a JSON object:
                 <button
                   onClick={() => {
                     setAnalysis(null);
+                    setReasoning(null);
+                    setShowReasoning(false);
                     setAnalysisType(analysisType === 'mna' ? 'gdpr' : 'mna');
                   }}
                   className="flex-1 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-lg font-semibold transition uppercase tracking-wide text-sm"

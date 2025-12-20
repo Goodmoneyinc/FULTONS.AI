@@ -33,7 +33,10 @@ export async function getDeepSeekResponse(prompt: string) {
   });
 
   const data = await response.json();
-  return data.choices[0].message.content;
+  return {
+    content: data.choices[0].message.content,
+    reasoning: data.choices[0].message.model_extra?.reasoning || null
+  };
 }
 
 export async function legalTaskRunner(
