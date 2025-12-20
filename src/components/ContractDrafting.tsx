@@ -8,6 +8,7 @@ export function ContractDrafting() {
   const [terms, setTerms] = useState('');
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [draft, setDraft] = useState<string | null>(null);
+  const [reasoning, setReasoning] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +45,8 @@ Please draft a complete, professional contract that includes:
 Make it thorough, professional, and ready for legal review.`;
 
       const result = await getDeepSeekResponse(prompt);
-      setDraft(result);
+      setDraft(result.content);
+      setReasoning(result.reasoning);
     } catch (err) {
       setError('Failed to draft contract. Please try again.');
       console.error('Contract drafting error:', err);
@@ -73,6 +75,7 @@ Make it thorough, professional, and ready for legal review.`;
     setTerms('');
     setAdditionalDetails('');
     setDraft(null);
+    setReasoning(null);
     setError(null);
   };
 
@@ -184,6 +187,17 @@ Make it thorough, professional, and ready for legal review.`;
               Download
             </button>
           </div>
+
+          {reasoning && (
+            <div className="bg-amber-50/5 border-2 border-amber-900/30 rounded-lg p-6">
+              <h3 className="text-amber-200 font-bold text-lg mb-4 font-serif">
+                AI Step-by-Step Reasoning:
+              </h3>
+              <p className="text-white/70 whitespace-pre-wrap leading-relaxed text-sm font-light">
+                {reasoning}
+              </p>
+            </div>
+          )}
 
           <div className="bg-white/5 border border-white/10 rounded-lg p-6 max-h-[600px] overflow-y-auto">
             <pre className="text-white/80 whitespace-pre-wrap font-light leading-relaxed text-sm">
