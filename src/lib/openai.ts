@@ -35,3 +35,35 @@ export async function getDeepSeekResponse(prompt: string) {
   const data = await response.json();
   return data.choices[0].message.content;
 }
+
+export async function legalTaskRunner(
+  taskType: 'research' | 'summary' | 'extraction' | 'reasoning',
+  content: string
+) {
+  const configs = {
+    research: {
+      model: 'anthropic/claude-3.5-sonnet',
+      prompt: `Act as a senior partner at a top-tier law firm. Provide high-quality legal prose and a "lawyer-like" authoritative tone for: ${content}`
+    },
+    summary: {
+      model: 'google/gemini-flash-1.5',
+      prompt: `Analyze this massive document and match it against our internal policy guidelines. Provide a high-level executive summary: ${content}`
+    },
+    extraction: {
+      model: 'mistralai/mistral-small',
+      prompt: `You are a data extraction bot. Extract all names, dates, and amounts from this text into a JSON format: ${content}`
+    },
+    reasoning: {
+      model: 'deepseek/deepseek-r1',
+      prompt: `Perform a deep legal analysis on this clause. Think through the implications for both parties: ${content}`
+    }
+  };
+
+  const selected = configs[taskType];
+
+  return await openai.chat.completions.create({
+    model: selected.model,
+    messages: [{ role: 'user', content: selected.prompt }],
+    ...(taskType === 'reasoning' && { include_reasoning: true })
+  });
+}
