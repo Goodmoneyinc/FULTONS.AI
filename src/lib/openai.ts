@@ -18,3 +18,20 @@ export async function getAIResponse(prompt: string, model: string = "google/gemi
 
   return completion.choices[0].message.content;
 }
+
+export async function getDeepSeekResponse(prompt: string) {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      "model": "deepseek/deepseek-r1-0528:free",
+      "messages": [{ "role": "user", "content": prompt }]
+    })
+  });
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
