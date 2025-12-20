@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, Loader2, X, BookOpen, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getAIResponse } from '../lib/openai';
+import { callLegalAssistant } from '../lib/api';
 
 interface Message {
   id: string;
@@ -139,7 +139,7 @@ Provide clear, authoritative legal guidance. When citing legal principles:
 Be precise, professional, and cite your sources.`;
       }
 
-      const response = await getAIResponse(prompt, 'anthropic/claude-3.5-sonnet');
+      const response = await callLegalAssistant(prompt, 'anthropic/claude-3.5-sonnet');
 
       const citations: Citation[] = [];
       const citationRegex = /\[SOURCE: ([^\|]+) \| type: ([^\|]+)(?:\| jurisdiction: ([^\]]+))?\]/g;

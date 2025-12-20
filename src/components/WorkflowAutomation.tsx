@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, Play, Loader2, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getAIResponse } from '../lib/openai';
+import { executeWorkflow } from '../lib/api';
 
 interface Workflow {
   id: string;
@@ -107,7 +107,7 @@ export function WorkflowAutomation({ documents }: WorkflowAutomationProps) {
         content.content_text
       );
 
-      const response = await getAIResponse(prompt, 'anthropic/claude-3.5-sonnet');
+      const response = await executeWorkflow(prompt);
 
       let results;
       try {

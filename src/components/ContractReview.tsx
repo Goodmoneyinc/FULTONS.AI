@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Loader2, FileSearch, AlertCircle, CheckCircle, AlertTriangle, Shield } from 'lucide-react';
-import { getDeepSeekResponse } from '../lib/openai';
+import { analyzeContract } from '../lib/api';
 
 interface Finding {
   category: string;
@@ -92,7 +92,7 @@ Return the results as a JSON object:
 }`;
       }
 
-      const result = await getDeepSeekResponse(prompt);
+      const result = await analyzeContract(prompt, analysisType);
 
       setReasoning(result.reasoning);
 

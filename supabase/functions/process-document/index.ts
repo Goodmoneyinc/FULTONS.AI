@@ -12,6 +12,28 @@ interface ProcessDocumentRequest {
   filePath: string;
 }
 
+function chunkText(text: string, maxChunkSize: number = 10000): string[] {
+  const chunks: string[] = [];
+  const paragraphs = text.split('\n\n');
+  
+  let currentChunk = '';
+  
+  for (const paragraph of paragraphs) {
+    if ((currentChunk + paragraph).length > maxChunkSize && currentChunk.length > 0) {
+      chunks.push(currentChunk.trim());
+      currentChunk = paragraph;
+    } else {
+      currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+    }
+  }
+  
+  if (currentChunk) {
+    chunks.push(currentChunk.trim());
+  }
+  
+  return chunks;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -31,13 +53,11 @@ Deno.serve(async (req: Request) => {
       throw new Error('documentId and filePath are required');
     }
 
-    // Update status to processing
     await supabase
       .from('documents')
       .update({ status: 'processing', updated_at: new Date().toISOString() })
       .eq('id', documentId);
 
-    // Download the PDF from storage
     const { data: fileData, error: downloadError } = await supabase
       .storage
       .from('legal-documents')
@@ -47,32 +67,21 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Failed to download file: ${downloadError?.message}`);
     }
 
-    // Convert blob to buffer
     const arrayBuffer = await fileData.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
 
-    // Extract text from PDF
     const pdfData = await pdfParse(buffer);
 
-    // Clean the extracted text
     let cleanedText = pdfData.text;
     
-    // Remove excessive whitespace
     cleanedText = cleanedText.replace(/\s+/g, ' ');
-    
-    // Remove excessive newlines (more than 2 consecutive)
     cleanedText = cleanedText.replace(/\n{3,}/g, '\n\n');
-    
-    // Trim whitespace from start and end
     cleanedText = cleanedText.trim();
 
-    // Remove common header/footer patterns (page numbers, etc.)
     const lines = cleanedText.split('\n');
     const filteredLines = lines.filter(line => {
       const trimmedLine = line.trim();
-      // Remove lines that are just page numbers
       if (/^\d+$/.test(trimmedLine)) return false;
-      // Remove very short lines (likely headers/footers)
       if (trimmedLine.length < 3) return false;
       return true;
     });
@@ -82,7 +91,17 @@ Deno.serve(async (req: Request) => {
     const characterCount = cleanedText.length;
     const pageCount = pdfData.numpages;
 
-    // Save cleaned text to document_contents table
+    const chunks = chunkText(cleanedText, 10000);
+    const isLargeDocument = chunks.length > 5;
+
+    const metadata = {
+      totalChunks: chunks.length,
+      isLargeDocument,
+      processingNote: isLargeDocument 
+        ? 'Large document detected. Use Gemini 1.5 Flash for analysis.'
+        : 'Standard document size. Can use any model.'
+    };
+
     const { error: insertError } = await supabase
       .from('document_contents')
       .insert({
@@ -96,7 +115,6 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Failed to save content: ${insertError.message}`);
     }
 
-    // Update document status to completed
     await supabase
       .from('documents')
       .update({
@@ -112,6 +130,7 @@ Deno.serve(async (req: Request) => {
         message: 'Document processed successfully',
         pageCount,
         characterCount,
+        metadata,
       }),
       {
         headers: {
@@ -123,7 +142,6 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Error processing document:', error);
 
-    // Try to update document status to failed
     try {
       const { documentId } = await req.json();
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

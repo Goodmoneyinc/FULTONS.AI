@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, BookOpen, Loader2, ExternalLink, Scale, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getAIResponse } from '../lib/openai';
+import { conductLegalResearch } from '../lib/api';
 
 interface ResearchResult {
   title: string;
@@ -61,37 +61,7 @@ export function LegalResearch() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const jurisdictionContext = jurisdiction
-        ? `Focus on ${jurisdiction} jurisdiction.`
-        : 'Include relevant jurisdictions in your response.';
-
-      const prompt = `You are a legal research assistant with access to case law databases.
-A lawyer is researching: "${query}"
-
-${jurisdictionContext}
-
-Provide relevant legal authorities, cases, statutes, and regulations. For each result, include:
-1. Title/Name of the authority
-2. Full legal citation
-3. Brief summary of relevance
-4. Jurisdiction
-5. Type (case_law, statute, regulation, treaty)
-
-Format your response as a JSON array:
-[
-  {
-    "title": "Case or statute name",
-    "citation": "Full legal citation",
-    "summary": "Brief explanation of relevance",
-    "jurisdiction": "US/EU/UK/etc",
-    "type": "case_law/statute/regulation/treaty",
-    "relevance": 0.9
-  }
-]
-
-Provide 5-8 highly relevant results. Be specific with citations.`;
-
-      const response = await getAIResponse(prompt, 'anthropic/claude-3.5-sonnet');
+      const response = await conductLegalResearch(query, jurisdiction || undefined);
 
       let parsedResults: ResearchResult[] = [];
       try {
