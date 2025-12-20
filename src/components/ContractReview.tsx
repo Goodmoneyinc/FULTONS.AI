@@ -1,6 +1,17 @@
 import { useState } from 'react';
-import { X, Loader2, FileSearch, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Loader2, FileSearch, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getDeepSeekResponse } from '../lib/openai';
+
+interface Finding {
+  category: string;
+  clause: string;
+  implication: string;
+  risk_level: string;
+}
+
+interface AnalysisResult {
+  findings: Finding[];
+}
 
 interface ContractReviewProps {
   documentName: string;
@@ -9,7 +20,7 @@ interface ContractReviewProps {
 }
 
 export function ContractReview({ documentName, content, onClose }: ContractReviewProps) {
-  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,29 +29,75 @@ export function ContractReview({ documentName, content, onClose }: ContractRevie
     setError(null);
 
     try {
-      const prompt = `You are an expert legal analyst. Review the following contract and provide a comprehensive analysis including:
+      const prompt = `You are a senior M&A Due Diligence Attorney. Your task is to analyze the provided document text against a specific Risk Playbook.
 
-1. Contract Type & Purpose
-2. Key Parties Involved
-3. Main Obligations & Rights
-4. Payment Terms (if applicable)
-5. Duration & Termination Clauses
-6. Potential Risks or Red Flags
-7. Missing or Unclear Provisions
-8. Overall Assessment
+1. CHANGE OF CONTROL: Identify any clauses requiring consent for assignment or termination upon a merger.
+2. INDEMNIFICATION: Flag any uncapped liability or survival periods exceeding 24 months.
+3. EXCLUSIVITY: Note any "No-Shop" or "Most Favored Nation" (MFN) clauses.
 
-Contract Document:
 ${content}
 
-Provide a detailed, professional analysis.`;
+Analyze the document above. For every risk found:
+1. Quote the specific clause.
+2. Explain the legal implication for an acquirer.
+3. Assign a Risk Level (Low/Medium/High).
+
+If no risks are found for a category, explicitly state "No issues identified."
+
+Return the results as a JSON object for system integration:
+{
+  "findings": [{
+    "category": "",
+    "clause": "",
+    "implication": "",
+    "risk_level": ""
+  }]
+}`;
 
       const result = await getDeepSeekResponse(prompt);
-      setAnalysis(result);
+
+      const jsonMatch = result.match(/\{[\s\S]*"findings"[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setAnalysis(parsed);
+      } else {
+        setAnalysis({ findings: [{
+          category: "General Analysis",
+          clause: "Full analysis provided",
+          implication: result,
+          risk_level: "Medium"
+        }]});
+      }
     } catch (err) {
       setError('Failed to analyze contract. Please try again.');
       console.error('Contract analysis error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getRiskColor = (level: string) => {
+    switch (level.toLowerCase()) {
+      case 'high':
+        return 'border-red-500/30 bg-red-500/10 text-red-400';
+      case 'medium':
+        return 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400';
+      case 'low':
+        return 'border-blue-500/30 bg-blue-500/10 text-blue-400';
+      default:
+        return 'border-white/10 bg-white/5 text-white/70';
+    }
+  };
+
+  const getRiskIcon = (level: string) => {
+    switch (level.toLowerCase()) {
+      case 'high':
+      case 'medium':
+        return <AlertTriangle className="w-5 h-5 flex-shrink-0" />;
+      case 'low':
+        return <CheckCircle className="w-5 h-5 flex-shrink-0" />;
+      default:
+        return <AlertCircle className="w-5 h-5 flex-shrink-0" />;
     }
   };
 
@@ -73,15 +130,18 @@ Provide a detailed, professional analysis.`;
           {!analysis && !loading && (
             <div className="text-center py-12">
               <FileSearch className="w-16 h-16 text-white/20 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">Ready to Analyze</h3>
-              <p className="text-white/50 mb-6">
-                DeepSeek R1 will provide a comprehensive legal analysis of this contract
+              <h3 className="text-xl font-bold text-white mb-2">M&A Due Diligence Review</h3>
+              <p className="text-white/50 mb-2">
+                DeepSeek R1 will analyze this contract for M&A risks
+              </p>
+              <p className="text-white/40 text-sm mb-6">
+                Focusing on: Change of Control, Indemnification & Exclusivity
               </p>
               <button
                 onClick={analyzeContract}
                 className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition uppercase tracking-wide text-sm"
               >
-                Analyze Contract
+                Analyze for M&A Risks
               </button>
             </div>
           )}
@@ -89,8 +149,8 @@ Provide a detailed, professional analysis.`;
           {loading && (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-12 h-12 text-blue-400 animate-spin mb-4" />
-              <p className="text-white/70">Analyzing contract with DeepSeek R1...</p>
-              <p className="text-white/40 text-sm mt-2">This may take a moment</p>
+              <p className="text-white/70">Conducting M&A Due Diligence with DeepSeek R1...</p>
+              <p className="text-white/40 text-sm mt-2">Analyzing risk factors and key clauses</p>
             </div>
           )}
 
@@ -117,14 +177,44 @@ Provide a detailed, professional analysis.`;
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 flex items-center gap-3">
                 <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 <span className="text-emerald-400 font-medium text-sm">
-                  Analysis completed by DeepSeek R1
+                  M&A Due Diligence Analysis completed by DeepSeek R1
                 </span>
               </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-lg p-6">
-                <pre className="text-white/80 whitespace-pre-wrap font-light leading-relaxed text-sm">
-                  {analysis}
-                </pre>
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-white uppercase tracking-wide">Risk Findings</h3>
+                {analysis.findings.map((finding, index) => (
+                  <div
+                    key={index}
+                    className={`border rounded-lg p-5 ${getRiskColor(finding.risk_level)}`}
+                  >
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex items-center gap-3">
+                        {getRiskIcon(finding.risk_level)}
+                        <div>
+                          <h4 className="font-bold uppercase tracking-wide text-xs">
+                            {finding.category}
+                          </h4>
+                          <span className="text-xs font-semibold uppercase mt-1 inline-block">
+                            Risk Level: {finding.risk_level}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 mt-4">
+                      <div>
+                        <p className="font-semibold text-xs uppercase tracking-wide mb-1.5">Clause:</p>
+                        <p className="text-sm leading-relaxed italic">"{finding.clause}"</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-xs uppercase tracking-wide mb-1.5">Implication:</p>
+                        <p className="text-sm leading-relaxed">{finding.implication}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <button
