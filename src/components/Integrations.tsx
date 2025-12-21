@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { FileText, Mail, Download, Upload, CheckCircle, AlertCircle, Sparkles, Play } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText, Mail, Download, Upload, CheckCircle, AlertCircle, Sparkles, Play, RefreshCw } from 'lucide-react';
+import { getIntegrations, initiateGoogleDriveOAuth, syncDocuments, disconnectIntegration, Integration } from '../lib/integrations';
 
 export function Integrations() {
   const [wordConnected, setWordConnected] = useState(false);
@@ -7,6 +8,57 @@ export function Integrations() {
   const [playbook, setPlaybook] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadIntegrations();
+  }, []);
+
+  const loadIntegrations = async () => {
+    try {
+      const data = await getIntegrations();
+      setIntegrations(data);
+    } catch (error) {
+      console.error('Failed to load integrations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getIntegrationByProvider = (provider: string) => {
+    return integrations.find(i => i.provider === provider);
+  };
+
+  const handleConnectGoogleDrive = () => {
+    initiateGoogleDriveOAuth();
+  };
+
+  const handleSync = async (integrationId: string) => {
+    try {
+      setSyncing(integrationId);
+      await syncDocuments(integrationId);
+      await loadIntegrations();
+    } catch (error) {
+      console.error('Sync failed:', error);
+      alert('Failed to sync documents. Please try again.');
+    } finally {
+      setSyncing(null);
+    }
+  };
+
+  const handleDisconnect = async (integrationId: string) => {
+    if (!confirm('Are you sure you want to disconnect this integration?')) return;
+
+    try {
+      await disconnectIntegration(integrationId);
+      await loadIntegrations();
+    } catch (error) {
+      console.error('Failed to disconnect:', error);
+      alert('Failed to disconnect integration.');
+    }
+  };
 
   const connectWord = () => {
     setWordConnected(true);
@@ -205,31 +257,64 @@ Your Legal Team`);
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4">
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
-            <p className="text-white font-medium mb-1">iManage</p>
-            <button className="text-blue-400 text-sm hover:text-blue-300 transition">
-              Connect
-            </button>
-          </div>
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
-            <p className="text-white font-medium mb-1">NetDocuments</p>
-            <button className="text-blue-400 text-sm hover:text-blue-300 transition">
-              Connect
-            </button>
-          </div>
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
-            <p className="text-white font-medium mb-1">SharePoint</p>
-            <button className="text-blue-400 text-sm hover:text-blue-300 transition">
-              Connect
-            </button>
-          </div>
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
-            <p className="text-white font-medium mb-1">Google Drive</p>
-            <button className="text-blue-400 text-sm hover:text-blue-300 transition">
-              Connect
-            </button>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {['imanage', 'netdocuments', 'sharepoint', 'google_drive'].map((provider) => {
+            const integration = getIntegrationByProvider(provider);
+            const providerName = provider === 'google_drive' ? 'Google Drive' :
+                                provider === 'imanage' ? 'iManage' :
+                                provider === 'netdocuments' ? 'NetDocuments' :
+                                'SharePoint';
+
+            return (
+              <div key={provider} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-white font-medium">{providerName}</p>
+                  {integration?.status === 'active' && (
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  )}
+                  {integration?.status === 'expired' && (
+                    <AlertCircle className="w-4 h-4 text-yellow-400" />
+                  )}
+                </div>
+
+                {integration ? (
+                  <div className="space-y-2">
+                    {integration.provider_email && (
+                      <p className="text-white/50 text-xs truncate">{integration.provider_email}</p>
+                    )}
+                    {integration.last_sync_at && (
+                      <p className="text-white/40 text-xs">
+                        Last sync: {new Date(integration.last_sync_at).toLocaleDateString()}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleSync(integration.id)}
+                        disabled={syncing === integration.id}
+                        className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-white/5 disabled:text-white/30 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-1"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${syncing === integration.id ? 'animate-spin' : ''}`} />
+                        {syncing === integration.id ? 'Syncing...' : 'Sync'}
+                      </button>
+                      <button
+                        onClick={() => handleDisconnect(integration.id)}
+                        className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded text-xs font-semibold transition"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => provider === 'google_drive' ? handleConnectGoogleDrive() : alert(`${providerName} integration coming soon!`)}
+                    className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-semibold transition"
+                  >
+                    Connect
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

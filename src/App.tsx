@@ -4,11 +4,16 @@ import { supabase } from './lib/supabase';
 import { LandingPage } from './components/LandingPage';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
+import { OAuthCallback } from './components/OAuthCallback';
 
 function App() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+
+  if (window.location.pathname === '/oauth/callback') {
+    return <OAuthCallback />;
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
