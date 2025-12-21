@@ -205,7 +205,7 @@ Your Legal Team`);
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
             <p className="text-white font-medium mb-1">iManage</p>
             <button className="text-blue-400 text-sm hover:text-blue-300 transition">
@@ -220,6 +220,12 @@ Your Legal Team`);
           </div>
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
             <p className="text-white font-medium mb-1">SharePoint</p>
+            <button className="text-blue-400 text-sm hover:text-blue-300 transition">
+              Connect
+            </button>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+            <p className="text-white font-medium mb-1">Google Drive</p>
             <button className="text-blue-400 text-sm hover:text-blue-300 transition">
               Connect
             </button>
