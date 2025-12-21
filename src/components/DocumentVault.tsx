@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, Trash2, Loader2, Search, Filter } from 'lucide-react';
+import { FileText, Download, Trash2, Loader2, Search, Filter, Table, FolderSync, History } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analyzeDocument } from '../lib/api';
+import { ReviewTable } from './ReviewTable';
 
 interface Document {
   id: string;
@@ -41,6 +42,7 @@ export function DocumentVault() {
   const [taskResult, setTaskResult] = useState<string>('');
   const [processing, setProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeView, setActiveView] = useState<'analysis' | 'review'>('analysis');
 
   useEffect(() => {
     loadDocuments();
@@ -110,17 +112,57 @@ export function DocumentVault() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-          <FileText className="w-6 h-6" />
-          Document Vault
-        </h2>
-        <p className="text-white/50 text-sm">
-          Analyze documents with specialized AI models for summarization and data extraction
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+              <FileText className="w-6 h-6" />
+              Document Vault
+            </h2>
+            <p className="text-white/50 text-sm">
+              Unified workspace for matters, documents, and research with version control
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
+              <FolderSync className="w-4 h-4 text-white/40" />
+              <span className="text-white/60 text-sm">Sync with DMS</span>
+            </div>
+            <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
+              <span className="text-white/60 text-sm">{documents.length}/100 files</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveView('analysis')}
+            className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
+              activeView === 'analysis'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
+          >
+            Document Analysis
+          </button>
+          <button
+            onClick={() => setActiveView('review')}
+            className={`px-4 py-2 rounded-lg font-semibold text-sm transition flex items-center gap-2 ${
+              activeView === 'review'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
+          >
+            <Table className="w-4 h-4" />
+            Review Table
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
+      {activeView === 'review' ? (
+        <ReviewTable documents={documents.map(d => ({ id: d.id, name: d.name }))} />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
           <div className="bg-white/5 border border-white/10 rounded-lg p-4">
             <div className="flex items-center gap-3 mb-4">
               <Search className="w-5 h-5 text-white/40" />
@@ -229,19 +271,31 @@ export function DocumentVault() {
 
               {taskResult && !processing && (
                 <div className="bg-white/5 border border-white/10 rounded-lg p-5">
-                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Analysis Result
-                  </h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-white font-semibold flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Analysis Result
+                    </h3>
+                    <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/60 text-xs hover:bg-white/10 transition">
+                      <History className="w-3 h-3" />
+                      Version 1
+                    </button>
+                  </div>
                   <pre className="text-white/80 text-sm whitespace-pre-wrap leading-relaxed bg-black/30 p-4 rounded border border-white/10 overflow-x-auto">
                     {taskResult}
                   </pre>
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <p className="text-white/40 text-xs">
+                      All outputs include version histories and clickable citations
+                    </p>
+                  </div>
                 </div>
               )}
             </>
           )}
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, LogOut, Upload as UploadIcon, FileText, PenTool, MessageSquare, Zap, Scale, BookOpen } from 'lucide-react';
+import { Shield, LogOut, Upload as UploadIcon, FileText, PenTool, MessageSquare, Zap, Scale, BookOpen, Plug } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { DocumentUpload } from './DocumentUpload';
 import { DocumentList } from './DocumentList';
@@ -8,12 +8,13 @@ import { LegalAssistant } from './LegalAssistant';
 import { WorkflowAutomation } from './WorkflowAutomation';
 import { LegalResearch } from './LegalResearch';
 import { DocumentVault } from './DocumentVault';
+import { Integrations } from './Integrations';
 
 interface DashboardProps {
   onLogout: () => void;
 }
 
-type ActiveTab = 'documents' | 'assistant' | 'workflows' | 'research' | 'drafting';
+type ActiveTab = 'documents' | 'assistant' | 'workflows' | 'research' | 'drafting' | 'integrations';
 
 export function Dashboard({ onLogout }: DashboardProps) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -99,7 +100,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-5 gap-4 mb-12">
+          <div className="grid lg:grid-cols-6 gap-4 mb-12">
             <button
               onClick={() => setActiveTab('documents')}
               className={`p-6 rounded-lg border-2 transition ${
@@ -159,6 +160,18 @@ export function Dashboard({ onLogout }: DashboardProps) {
               <PenTool className={`w-8 h-8 mx-auto mb-3 ${activeTab === 'drafting' ? 'text-cyan-400' : 'text-white/40'}`} />
               <h3 className="text-white font-bold text-sm uppercase tracking-wide">Drafting</h3>
             </button>
+
+            <button
+              onClick={() => setActiveTab('integrations')}
+              className={`p-6 rounded-lg border-2 transition ${
+                activeTab === 'integrations'
+                  ? 'border-pink-500 bg-pink-500/10'
+                  : 'border-white/10 bg-white/5 hover:border-white/20'
+              }`}
+            >
+              <Plug className={`w-8 h-8 mx-auto mb-3 ${activeTab === 'integrations' ? 'text-pink-400' : 'text-white/40'}`} />
+              <h3 className="text-white font-bold text-sm uppercase tracking-wide">Integrations</h3>
+            </button>
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-lg p-8">
@@ -212,6 +225,10 @@ export function Dashboard({ onLogout }: DashboardProps) {
 
             {activeTab === 'drafting' && (
               <ContractDrafting />
+            )}
+
+            {activeTab === 'integrations' && (
+              <Integrations />
             )}
           </div>
         </div>
