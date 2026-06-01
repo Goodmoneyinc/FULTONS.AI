@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Shield, LogOut, Upload as UploadIcon, FileText, PenTool, MessageSquare, Zap, Scale, BookOpen, Plug } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Shield, LogOut, Upload as UploadIcon, FileText, PenTool, MessageSquare, Zap, Scale, Plug } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { DocumentUpload } from './DocumentUpload';
 import { DocumentList } from './DocumentList';
@@ -14,13 +15,72 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-type ActiveTab = 'documents' | 'assistant' | 'workflows' | 'research' | 'drafting' | 'integrations';
+type ActiveTab = 'documents' | 'vault' | 'assistant' | 'workflows' | 'research' | 'drafting' | 'integrations';
+
+interface NavigationTab {
+  id: ActiveTab;
+  label: string;
+  icon: LucideIcon;
+  textColor: string;
+  activeClassName: string;
+}
+
+const navigationTabs: NavigationTab[] = [
+  {
+    id: 'documents',
+    label: 'Documents',
+    icon: FileText,
+    textColor: 'text-blue-400',
+    activeClassName: 'border-blue-500 bg-blue-500/10',
+  },
+  {
+    id: 'vault',
+    label: 'Vault',
+    icon: Shield,
+    textColor: 'text-emerald-400',
+    activeClassName: 'border-emerald-500 bg-emerald-500/10',
+  },
+  {
+    id: 'assistant',
+    label: 'Assistant',
+    icon: MessageSquare,
+    textColor: 'text-purple-400',
+    activeClassName: 'border-purple-500 bg-purple-500/10',
+  },
+  {
+    id: 'workflows',
+    label: 'Workflows',
+    icon: Zap,
+    textColor: 'text-amber-400',
+    activeClassName: 'border-amber-500 bg-amber-500/10',
+  },
+  {
+    id: 'research',
+    label: 'Research',
+    icon: Scale,
+    textColor: 'text-red-400',
+    activeClassName: 'border-red-500 bg-red-500/10',
+  },
+  {
+    id: 'drafting',
+    label: 'Drafting',
+    icon: PenTool,
+    textColor: 'text-cyan-400',
+    activeClassName: 'border-cyan-500 bg-cyan-500/10',
+  },
+  {
+    id: 'integrations',
+    label: 'Integrations',
+    icon: Plug,
+    textColor: 'text-indigo-400',
+    activeClassName: 'border-indigo-500 bg-indigo-500/10',
+  },
+];
 
 export function Dashboard({ onLogout }: DashboardProps) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState<ActiveTab>('documents');
   const [documents, setDocuments] = useState<Array<{ id: string; filename: string }>>([]);
-  const [showGeneralAssistant, setShowGeneralAssistant] = useState(false);
 
   useEffect(() => {
     loadDocuments();
@@ -100,78 +160,25 @@ export function Dashboard({ onLogout }: DashboardProps) {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-6 gap-4 mb-12">
-            <button
-              onClick={() => setActiveTab('documents')}
-              className={`p-6 rounded-lg border-2 transition ${
-                activeTab === 'documents'
-                  ? 'border-blue-500 bg-blue-500/10'
-                  : 'border-white/10 bg-white/5 hover:border-white/20'
-              }`}
-            >
-              <FileText className={`w-8 h-8 mx-auto mb-3 ${activeTab === 'documents' ? 'text-blue-400' : 'text-white/40'}`} />
-              <h3 className="text-white font-bold text-sm uppercase tracking-wide">Documents</h3>
-            </button>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-7 gap-4 mb-12">
+            {navigationTabs.map(({ id, label, icon: Icon, textColor, activeClassName }) => {
+              const isActive = activeTab === id;
 
-            <button
-              onClick={() => setActiveTab('assistant')}
-              className={`p-6 rounded-lg border-2 transition ${
-                activeTab === 'assistant'
-                  ? 'border-green-500 bg-green-500/10'
-                  : 'border-white/10 bg-white/5 hover:border-white/20'
-              }`}
-            >
-              <MessageSquare className={`w-8 h-8 mx-auto mb-3 ${activeTab === 'assistant' ? 'text-green-400' : 'text-white/40'}`} />
-              <h3 className="text-white font-bold text-sm uppercase tracking-wide">Assistant</h3>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('workflows')}
-              className={`p-6 rounded-lg border-2 transition ${
-                activeTab === 'workflows'
-                  ? 'border-purple-500 bg-purple-500/10'
-                  : 'border-white/10 bg-white/5 hover:border-white/20'
-              }`}
-            >
-              <Zap className={`w-8 h-8 mx-auto mb-3 ${activeTab === 'workflows' ? 'text-purple-400' : 'text-white/40'}`} />
-              <h3 className="text-white font-bold text-sm uppercase tracking-wide">Workflows</h3>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('research')}
-              className={`p-6 rounded-lg border-2 transition ${
-                activeTab === 'research'
-                  ? 'border-amber-500 bg-amber-500/10'
-                  : 'border-white/10 bg-white/5 hover:border-white/20'
-              }`}
-            >
-              <Scale className={`w-8 h-8 mx-auto mb-3 ${activeTab === 'research' ? 'text-amber-400' : 'text-white/40'}`} />
-              <h3 className="text-white font-bold text-sm uppercase tracking-wide">Research</h3>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('drafting')}
-              className={`p-6 rounded-lg border-2 transition ${
-                activeTab === 'drafting'
-                  ? 'border-cyan-500 bg-cyan-500/10'
-                  : 'border-white/10 bg-white/5 hover:border-white/20'
-              }`}
-            >
-              <PenTool className={`w-8 h-8 mx-auto mb-3 ${activeTab === 'drafting' ? 'text-cyan-400' : 'text-white/40'}`} />
-              <h3 className="text-white font-bold text-sm uppercase tracking-wide">Drafting</h3>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('integrations')}
-              className={`p-6 rounded-lg border-2 transition ${
-                activeTab === 'integrations'
-                  ? 'border-pink-500 bg-pink-500/10'
-                  : 'border-white/10 bg-white/5 hover:border-white/20'
-              }`}
-            >
-              <Plug className={`w-8 h-8 mx-auto mb-3 ${activeTab === 'integrations' ? 'text-pink-400' : 'text-white/40'}`} />
-              <h3 className="text-white font-bold text-sm uppercase tracking-wide">Integrations</h3>
-            </button>
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`p-6 rounded-lg border-2 transition ${
+                    isActive
+                      ? activeClassName
+                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                  }`}
+                >
+                  <Icon className={`w-8 h-8 mx-auto mb-3 ${isActive ? textColor : 'text-white/40'}`} />
+                  <h3 className="text-white font-bold text-sm uppercase tracking-wide">{label}</h3>
+                </button>
+              );
+            })}
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-lg p-8">
@@ -193,26 +200,15 @@ export function Dashboard({ onLogout }: DashboardProps) {
                   <DocumentList refreshTrigger={refreshTrigger} onDocumentsChange={handleDocumentsChange} />
                 </div>
 
-                <div className="border-t border-white/10 pt-8">
-                  <DocumentVault />
-                </div>
               </div>
             )}
 
+            {activeTab === 'vault' && (
+              <DocumentVault />
+            )}
+
             {activeTab === 'assistant' && (
-              <div className="text-center py-12">
-                <MessageSquare className="w-16 h-16 text-white/20 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-white mb-4">Legal AI Assistant</h2>
-                <p className="text-white/60 mb-8 max-w-2xl mx-auto">
-                  Ask questions about your documents or get general legal guidance with verified citations
-                </p>
-                <button
-                  onClick={() => setShowGeneralAssistant(true)}
-                  className="px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition uppercase tracking-wide text-sm"
-                >
-                  Start Conversation
-                </button>
-              </div>
+              <LegalAssistant onClose={() => setActiveTab('documents')} />
             )}
 
             {activeTab === 'workflows' && (
@@ -242,11 +238,6 @@ export function Dashboard({ onLogout }: DashboardProps) {
         </div>
       </footer>
 
-      {showGeneralAssistant && (
-        <LegalAssistant
-          onClose={() => setShowGeneralAssistant(false)}
-        />
-      )}
     </div>
   );
 }

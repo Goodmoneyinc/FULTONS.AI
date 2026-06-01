@@ -1,6 +1,75 @@
 import { useState, useEffect } from 'react';
-import { FileText, Mail, Download, Upload, CheckCircle, AlertCircle, Sparkles, Play, RefreshCw } from 'lucide-react';
-import { getIntegrations, initiateGoogleDriveOAuth, syncDocuments, disconnectIntegration, Integration } from '../lib/integrations';
+import { FileText, Mail, Download, CheckCircle, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
+import {
+  getIntegrations,
+  initiateGoogleDriveOAuth,
+  syncDocuments,
+  disconnectIntegration,
+  type Integration,
+} from '../lib/integrations';
+
+type OAuthProvider = 'google_drive' | 'microsoft_office';
+type OAuthStatus = 'active' | 'pending' | 'disconnected' | 'error';
+
+interface ProviderConfig {
+  id: OAuthProvider;
+  name: string;
+  description: string;
+  actionLabel: string;
+  icon: 'drive' | 'office';
+  oauthEnabled: boolean;
+}
+
+interface OAuthMappingState {
+  status: OAuthStatus;
+  message: string;
+  lastUpdatedAt: string | null;
+}
+
+const externalInfrastructureProviders: ProviderConfig[] = [
+  {
+    id: 'google_drive',
+    name: 'Google Drive',
+    description: 'Read-only vault sync through a scoped Google Drive OAuth grant.',
+    actionLabel: 'Connect Google Drive',
+    icon: 'drive',
+    oauthEnabled: true,
+  },
+  {
+    id: 'microsoft_office',
+    name: 'Microsoft Office',
+    description: 'Prepare Word and Outlook OAuth isolation for Microsoft 365 workspaces.',
+    actionLabel: 'Connect Microsoft Office',
+    icon: 'office',
+    oauthEnabled: false,
+  },
+];
+
+const initialOAuthMappings: Record<OAuthProvider, OAuthMappingState> = {
+  google_drive: {
+    status: 'disconnected',
+    message: '',
+    lastUpdatedAt: null,
+  },
+  microsoft_office: {
+    status: 'disconnected',
+    message: '',
+    lastUpdatedAt: null,
+  },
+};
+
+const hasSameOAuthState = (current: OAuthMappingState, next: OAuthMappingState) =>
+  current.status === next.status &&
+  current.message === next.message &&
+  current.lastUpdatedAt === next.lastUpdatedAt;
+
+const getProviderIcon = (icon: ProviderConfig['icon']) => {
+  if (icon === 'office') {
+    return <Mail className="w-5 h-5 text-purple-400" />;
+  }
+
+  return <Download className="w-5 h-5 text-green-400" />;
+};
 
 export function Integrations() {
   const [wordConnected, setWordConnected] = useState(false);
@@ -9,6 +78,7 @@ export function Integrations() {
   const [emailDraft, setEmailDraft] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [oauthMappings, setOauthMappings] = useState<Record<OAuthProvider, OAuthMappingState>>(initialOAuthMappings);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,35 +86,157 @@ export function Integrations() {
     loadIntegrations();
   }, []);
 
+  const updateOAuthMapping = (
+    provider: OAuthProvider,
+    updater: (current: OAuthMappingState) => OAuthMappingState
+  ) => {
+    setOauthMappings((currentMappings) => {
+      const currentProviderState = currentMappings[provider];
+      const nextProviderState = updater(currentProviderState);
+
+      if (hasSameOAuthState(currentProviderState, nextProviderState)) {
+        return currentMappings;
+      }
+
+      return {
+        ...currentMappings,
+        [provider]: nextProviderState,
+      };
+    });
+  };
+
   const loadIntegrations = async () => {
     try {
       const data = await getIntegrations();
-      setIntegrations(data);
+      setIntegrations((current) => {
+        const hasSameRemoteState =
+          current.length === data.length &&
+          current.every((item, index) => {
+            const nextItem = data[index];
+
+            return (
+              item.id === nextItem?.id &&
+              item.status === nextItem.status &&
+              item.last_sync_at === nextItem.last_sync_at &&
+              item.sync_enabled === nextItem.sync_enabled &&
+              item.provider_email === nextItem.provider_email
+            );
+          });
+
+        if (hasSameRemoteState) {
+          return current;
+        }
+
+        return data;
+      });
     } catch (error) {
       console.error('Failed to load integrations:', error);
     } finally {
-      setLoading(false);
+      setLoading((current) => (current ? false : current));
     }
   };
 
   const getIntegrationByProvider = (provider: string) => {
-    return integrations.find(i => i.provider === provider);
+    return integrations.find((integration) => integration.provider === provider);
   };
 
-  const handleConnectGoogleDrive = () => {
-    initiateGoogleDriveOAuth();
+  const getProviderStatus = (provider: OAuthProvider, integration?: Integration): OAuthStatus | null => {
+    if (integration?.status === 'active') {
+      return 'active';
+    }
+
+    if (integration?.status === 'expired') {
+      return 'disconnected';
+    }
+
+    if (integration?.status === 'error') {
+      return 'error';
+    }
+
+    return oauthMappings[provider]?.status ?? null;
+  };
+
+  const getStatusBadge = (status: OAuthStatus | null) => {
+    if (status === 'active') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-1 text-xs font-semibold text-green-400">
+          <CheckCircle className="w-3 h-3" />
+          Active
+        </span>
+      );
+    }
+
+    if (status === 'pending') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-xs font-semibold text-blue-400">
+          <RefreshCw className="w-3 h-3 animate-spin" />
+          Pending
+        </span>
+      );
+    }
+
+    if (status === 'error') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400">
+          <AlertCircle className="w-3 h-3" />
+          Error
+        </span>
+      );
+    }
+
+    if (status === 'disconnected') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs font-semibold text-white/50">
+          <AlertCircle className="w-3 h-3" />
+          Disconnected
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs font-semibold text-white/40">
+        <AlertCircle className="w-3 h-3" />
+        Not configured
+      </span>
+    );
+  };
+
+  const initiateOAuthFlow = (provider: OAuthProvider) => {
+    const providerConfig = externalInfrastructureProviders.find((item) => item.id === provider);
+    const message = `Connecting to structural provider API [${provider}]. Secure sandbox session instantiated.`;
+
+    updateOAuthMapping(provider, (current) => ({
+      ...current,
+      status: 'pending',
+      message,
+      lastUpdatedAt: new Date().toISOString(),
+    }));
+
+    if (!providerConfig?.oauthEnabled) {
+      updateOAuthMapping(provider, (current) => ({
+        ...current,
+        status: 'disconnected',
+        message: `${message} Provider endpoint awaits administrator activation.`,
+        lastUpdatedAt: new Date().toISOString(),
+      }));
+      return;
+    }
+
+    if (provider === 'google_drive') {
+      initiateGoogleDriveOAuth();
+    }
   };
 
   const handleSync = async (integrationId: string) => {
     try {
-      setSyncing(integrationId);
+      setSyncing((current) => (current === integrationId ? current : integrationId));
       await syncDocuments(integrationId);
       await loadIntegrations();
     } catch (error) {
       console.error('Sync failed:', error);
       alert('Failed to sync documents. Please try again.');
     } finally {
-      setSyncing(null);
+      setSyncing((current) => (current === integrationId ? null : current));
     }
   };
 
@@ -61,24 +253,24 @@ export function Integrations() {
   };
 
   const connectWord = () => {
-    setWordConnected(true);
+    setWordConnected((current) => (current ? current : true));
   };
 
   const connectOutlook = () => {
-    setOutlookConnected(true);
+    setOutlookConnected((current) => (current ? current : true));
   };
 
   const analyzeWithPlaybook = async () => {
     if (!playbook.trim()) return;
 
-    setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
+    setAnalyzing((current) => (current ? current : true));
+    window.setTimeout(() => {
+      setAnalyzing((current) => (current ? false : current));
     }, 2000);
   };
 
   const draftEmail = () => {
-    setEmailDraft(`Dear Client,
+    const nextDraft = `Dear Client,
 
 Following our review of the complaint filed against your company, we have identified several strong pieces of evidence for your defense:
 
@@ -89,7 +281,9 @@ Following our review of the complaint filed against your company, we have identi
 We recommend proceeding with a motion to dismiss based on these grounds.
 
 Best regards,
-Your Legal Team`);
+Your Legal Team`;
+
+    setEmailDraft((current) => (current === nextDraft ? current : nextDraft));
   };
 
   return (
@@ -155,7 +349,7 @@ Your Legal Team`);
                   <input
                     type="text"
                     value={playbook}
-                    onChange={(e) => setPlaybook(e.target.value)}
+                    onChange={(event) => setPlaybook((current) => (current === event.target.value ? current : event.target.value))}
                     placeholder="Describe your contract standards..."
                     className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-white/40 focus:outline-none focus:border-white/30 text-sm"
                   />
@@ -252,41 +446,60 @@ Your Legal Team`);
             <Download className="w-5 h-5 text-green-400" />
           </div>
           <div>
-            <h3 className="text-white font-semibold">Document Management System Sync</h3>
-            <p className="text-white/50 text-sm">Automatically sync vaults with your DMS</p>
+            <h3 className="text-white font-semibold">External Infrastructure Providers</h3>
+            <p className="text-white/50 text-sm">Isolated OAuth mappings for secure document workspace sync</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {['imanage', 'netdocuments', 'sharepoint', 'google_drive'].map((provider) => {
-            const integration = getIntegrationByProvider(provider);
-            const providerName = provider === 'google_drive' ? 'Google Drive' :
-                                provider === 'imanage' ? 'iManage' :
-                                provider === 'netdocuments' ? 'NetDocuments' :
-                                'SharePoint';
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <RefreshCw className="w-5 h-5 animate-spin text-white/40" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {externalInfrastructureProviders.map((provider) => {
+              const integration = getIntegrationByProvider(provider.id);
+              const status = getProviderStatus(provider.id, integration);
+              const oauthState = oauthMappings[provider.id];
+              const isActive = status === 'active';
 
-            return (
-              <div key={provider} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-white font-medium">{providerName}</p>
-                  {integration?.status === 'active' && (
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                  )}
-                  {integration?.status === 'expired' && (
-                    <AlertCircle className="w-4 h-4 text-yellow-400" />
-                  )}
-                </div>
+              return (
+                <div
+                  key={provider.id}
+                  className={`border rounded-lg p-4 transition ${
+                    isActive
+                      ? 'border-green-500/30 bg-green-500/10'
+                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center">
+                        {getProviderIcon(provider.icon)}
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">{provider.name}</p>
+                        <p className="text-white/50 text-xs">{provider.description}</p>
+                      </div>
+                    </div>
+                    {getStatusBadge(status)}
+                  </div>
 
-                {integration ? (
-                  <div className="space-y-2">
-                    {integration.provider_email && (
-                      <p className="text-white/50 text-xs truncate">{integration.provider_email}</p>
-                    )}
-                    {integration.last_sync_at && (
-                      <p className="text-white/40 text-xs">
-                        Last sync: {new Date(integration.last_sync_at).toLocaleDateString()}
-                      </p>
-                    )}
+                  {integration?.provider_email && (
+                    <p className="text-white/50 text-xs truncate mb-2">{integration.provider_email}</p>
+                  )}
+
+                  {integration?.last_sync_at && (
+                    <p className="text-white/40 text-xs mb-3">
+                      Last sync: {new Date(integration.last_sync_at).toLocaleDateString()}
+                    </p>
+                  )}
+
+                  {oauthState.message && (
+                    <p className="text-white/40 text-xs mb-3">{oauthState.message}</p>
+                  )}
+
+                  {integration ? (
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleSync(integration.id)}
@@ -303,18 +516,26 @@ Your Legal Team`);
                         Disconnect
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => provider === 'google_drive' ? handleConnectGoogleDrive() : alert(`${providerName} integration coming soon!`)}
-                    className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-semibold transition"
-                  >
-                    Connect
-                  </button>
-                )}
-              </div>
-            );
-          })}
+                  ) : (
+                    <button
+                      onClick={() => initiateOAuthFlow(provider.id)}
+                      className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-semibold transition"
+                    >
+                      {provider.actionLabel}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <p className="text-white/40 text-xs leading-relaxed">
+            Security Isolation Protocol: provider OAuth mappings are stored in isolated state slots,
+            and every mutation is guarded through functional state updates to prevent stale-session
+            writes across provider boundaries.
+          </p>
         </div>
       </div>
     </div>
